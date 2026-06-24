@@ -14,19 +14,16 @@ import { useUserStore } from "@/store/profileStore";
 const DOCS_LIST = [
   { id: "app-info.md", title: "Thông tin chung" },
   { id: "features.md", title: "Tính năng" },
-  { id: "map-in-app.md", title: "Bản đồ thế giới" },
+  // { id: "map-in-app.md", title: "Bản đồ thế giới" },
+  { id: "decentralized-infrastructure.md", title: "Hạ tầng phi tập chung"},
 ];
 
 export default function DocsPage() {
   const router = useRouter();
-  const { name, avatarUrl, initializeUser } = useUserStore();
+  const { nickname, avatarUrl } = useUserStore();
   const [selectedFile, setSelectedFile] = useState<string>(DOCS_LIST[0].id);
   const [content, setContent] = useState<string>("");
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-
-  useEffect(() => {
-    initializeUser((url) => console.log("Redirect to", url));
-  }, [initializeUser]);
 
   useEffect(() => {
     fetch(`${basePath}/docs/${selectedFile}`)
@@ -48,11 +45,11 @@ export default function DocsPage() {
 
         <div className="flex items-center gap-3 p-2">
           <Avatar className="h-12 w-12 border">
-            <AvatarImage src={avatarUrl} alt={name} />
-            <AvatarFallback>{name?.slice(0, 2).toUpperCase() || "US"}</AvatarFallback>
+            <AvatarImage src={avatarUrl} alt={nickname} />
+            <AvatarFallback>{nickname?.slice(0, 2).toUpperCase() || "US"}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col overflow-hidden">
-            <span className="font-bold truncate">{name || "User"}</span>
+            <span className="font-bold truncate">{nickname || "User"}</span>
             <span className="text-xs text-muted-foreground">System Design</span>
           </div>
         </div>

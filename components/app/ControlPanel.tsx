@@ -86,28 +86,32 @@ export default function ControlPanel() {
   return (
     <>
       <div className="p-4 flex flex-row items-start w-full gap-4 max-w-4xl rounded-xl bg-background text-foreground select-none">
-        {/**Thanh điều hướng bị ân */}
         <div className="flex flex-col items-center justify-top gap-3 pt-0.5 border-r border-border/40 pr-1.5">
           {NAVIGATION_TABS.map((tab) => {
             const IconComponent = tab.icon;
             const isActive = activeTab === tab.id;
+
             return (
-              <button
+              <Button
                 key={tab.id}
+                variant={isActive ? "secondary" : "ghost"}
+                size="icon"
                 onClick={() => setActiveTab(tab.id)}
                 title={tab.title}
-                className={`h-9 w-9 rounded-md flex items-center justify-center transition-all group border ${isActive
-                  ? "bg-muted text-foreground border-border"
-                  : "text-muted-foreground border-transparent hover:bg-muted hover:text-foreground hover:border-border"
+                className={`h-9 w-9 rounded-md transition-all group border ${isActive
+                    ? "border-border"
+                    : "border-transparent hover:border-border"
                   }`}
               >
                 <IconComponent
                   className={`h-5 w-5 transition-transform duration-300 ${tab.rotateOnHover
-                    ? isActive ? "rotate-45" : "group-hover:rotate-45"
-                    : ""
+                      ? isActive
+                        ? "rotate-45"
+                        : "group-hover:rotate-45"
+                      : ""
                     }`}
                 />
-              </button>
+              </Button>
             );
           })}
         </div>

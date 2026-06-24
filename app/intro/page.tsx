@@ -1,114 +1,105 @@
 "use client"
 
-import { ComponentType, ChangeEvent, FormEvent, useRef, useState, useEffect } from "react"
-import Image from "next/image"
+import { ChangeEvent, FormEvent, useRef, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Shuffle, Upload, User as UserIcon, Sparkles, CheckCircle2, LogIn, Smile, Flame, Fingerprint, SmilePlus } from "lucide-react"
+import { Upload, LogIn, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { useUserStore } from "@/store/profileStore"
 
-interface StyleItem {
-  id: string
-  name: string
-  desc: string
-  icon: ComponentType<{ className?: string }>
-}
-
 interface RestoredDataType {
-  name: string
+  username: string
+  tag: string
+  nickname: string
   avatarUrl: string
   currentStyle: string
-  [key: string]: unknown
 }
-
-export const AVATAR_STYLES: StyleItem[] = [
-  { id: 'lorelei', name: 'Lorelei', icon: Flame, desc: 'Nhân vật phiêu lưu' },
-  { id: 'identicon', name: 'Mesh Hash', icon: Fingerprint, desc: 'Mã hóa hình khối' },
-  { id: 'thumbs', name: 'Blob Thumbs', icon: Smile, desc: 'Hình nhân bong bóng' },
-  { id: 'fun-emoji', name: 'Fun Emoji', icon: SmilePlus, desc: 'Biểu cảm khối vuông' },
-]
 
 const OPFS_FILE_NAME = "info.json"
-
-function generateSecureSeed(): string {
-  if (typeof window !== "undefined" && window.crypto && window.crypto.getRandomValues) {
-    const array = new Uint32Array(1);
-    window.crypto.getRandomValues(array);
-    return array[0].toString(36);
-  }
-  return Math.random().toString(36).substring(7);
-}
 
 export default function Intro() {
   const setUserStore = useUserStore((state) => state.setUser)
   const isInitialized = useUserStore((state) => state.isInitialized)
-  const storedName = useUserStore((state) => state.name)
+  const usernameStore = useUserStore((state) => state.username)
   const router = useRouter()
-  
+
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+
   const [username, setUsername] = useState("")
-  const [currentStyle, setCurrentStyle] = useState("")
-  const [avatarUrl, setAvatarUrl] = useState("")
+  const [tag, setTag] = useState("#")
+  const [nickname, setNickname] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [restoredData, setRestoredData] = useState<RestoredDataType | null>(null)
 
   useEffect(() => {
-    if (isInitialized && storedName) {
+    if (isInitialized && usernameStore) {
       router.replace("/")
     }
-  }, [isInitialized, storedName, router])
+  }, [isInitialized, usernameStore, router])
 
-  const saveToOPFS = async (name: string, url: string, style: string) => {
+  const saveToOPFS = async (data: RestoredDataType) => {
     try {
       const root = await navigator.storage.getDirectory()
       const fileHandle = await root.getFileHandle(OPFS_FILE_NAME, { create: true })
       const writable = await fileHandle.createWritable()
-      const data = JSON.stringify({ name: name, avatarUrl: url, currentStyle: style })
-      await writable.write(data)
+      await writable.write(JSON.stringify(data))
       await writable.close()
     } catch (e) {
-      console.error("Lỗi ghi dữ liệu vào cấu trúc lưu trữ OPFS:", e)
+      console.error("Lỗi OPFS:", e)
+      toast.error("Không thể lưu dữ liệu vào hệ thống.")
     }
   }
 
-  const handleStyleChange = (styleId: string) => {
-    setCurrentStyle(styleId)
-    const randomSeed = generateSecureSeed()
-    setAvatarUrl(`https://api.dicebear.com/7.x/${styleId}/svg?seed=${randomSeed}`)
+  const handleUsernameChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value;
+    const sanitizedValue = rawValue
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d").replace(/Đ/g, "D")
+      .replace(/[^a-zA-Z0-9]/g, "");
+
+    setUsername(sanitizedValue);
   }
 
-  const generateRandomSeed = () => {
-    const targetStyle = currentStyle || AVATAR_STYLES[0].id
-    if (!currentStyle) {
-      setCurrentStyle(targetStyle)
+  const handleTagChange = (e: ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    if (!value.startsWith("#")) {
+      value = "#" + value;
     }
-    const randomSeed = generateSecureSeed()
-    setAvatarUrl(`https://api.dicebear.com/7.x/${targetStyle}/svg?seed=${randomSeed}`)
+    value = "#" + value.substring(1).replace(/#/g, "");
+    setTag(value);
   }
 
+  // Đọc file backup JSON
   const handleUploadBackup = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
     const reader = new FileReader()
     reader.onload = async (event) => {
       try {
         const json = JSON.parse(event.target?.result as string)
         const parsedData: RestoredDataType = {
-          name: json.name || json.username || "",
+          username: json.username || json.name || "",
+          tag: json.tag || "#",
+          nickname: json.nickname || "",
           avatarUrl: json.avatarUrl || "",
           currentStyle: json.currentStyle || ""
         }
+
         setRestoredData(parsedData)
-        setUsername(parsedData.name)
-        setCurrentStyle(parsedData.currentStyle)
-        setAvatarUrl(parsedData.avatarUrl)
-        
-        toast.info("Đọc file JSON thành công! Hãy kiểm tra kỹ lại thông tin trước khi xác nhận.")
+        setUsername(parsedData.username)
+        setTag(parsedData.tag.startsWith("#") ? parsedData.tag : `#${parsedData.tag}`)
+        setNickname(parsedData.nickname)
+
+        toast.success("Đọc file khôi phục thành công! Hãy kiểm tra lại thông tin.")
       } catch (err) {
-        toast.error("Cấu trúc file sao lưu JSON không hợp lệ.")
+        console.log(err)
+        toast.error("File JSON không hợp lệ hoặc bị hỏng.")
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = ""
       }
     }
     reader.readAsText(file)
@@ -117,53 +108,59 @@ export default function Intro() {
   const handleCancelRestore = () => {
     setRestoredData(null)
     setUsername("")
-    setCurrentStyle("")
-    setAvatarUrl("")
-    toast("Đã hủy bỏ trạng thái khôi phục dữ liệu.")
+    setTag("#")
+    setNickname("")
+    toast.info("Đã hủy trạng thái khôi phục.")
   }
 
   const handleSubmitForm = async (e: FormEvent) => {
     e.preventDefault()
 
     if (!username.trim()) {
-      toast.error("Vui lòng nhập Tên hiển thị.")
-      return
+      return toast.error("Vui lòng nhập Tên đăng nhập.")
     }
 
-    if (!avatarUrl) {
-      toast.error("Vui lòng chọn phong cách định danh hoặc bấm Ngẫu nhiên để sinh Avatar.")
-      return
+    if (!nickname.trim()) {
+      return toast.error("Vui lòng nhập Biệt danh.")
     }
 
     setIsSubmitting(true)
-    
-    try {
-      setUserStore(username, avatarUrl, currentStyle)
-      await saveToOPFS(username, avatarUrl, currentStyle)
-      
-      if (restoredData) {
-        toast.success("Đã khôi phục dữ liệu danh tính thành công!")
-      } else {
-        toast.success("Khởi tạo danh tính thành công!")
-      }
 
+    let finalTag = tag.trim();
+    if (finalTag === "#" || !finalTag) {
+      finalTag = "#prismex";
+    }
+    
+    const payload: RestoredDataType = { 
+      username, 
+      tag: finalTag, 
+      nickname: nickname.trim(), 
+      avatarUrl: restoredData?.avatarUrl || "", 
+      currentStyle: restoredData?.currentStyle || "" 
+    }
+
+    try {
+      setUserStore(payload.username, payload.tag, payload.nickname, payload.avatarUrl, payload.currentStyle)
+      await saveToOPFS(payload)
+
+      toast.success(restoredData ? "Khôi phục danh tính thành công!" : "Khởi tạo danh tính thành công!")
       router.push("/")
-      
     } catch (err) {
-      toast.error("Hệ thống gặp lỗi: Không thể lưu trữ thông tin cấu hình.")
+      console.log(err)
+      toast.error("Hệ thống gặp lỗi trong quá trình xử lý.")
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  if (isInitialized && storedName) {
-    return null
-  }
+  if (isInitialized && usernameStore) return null
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-background p-4 antialiased">
-      <div className="w-full max-w-2xl rounded-lg border bg-card p-6 shadow-sm">
-        <input 
+      <div className="w-full max-w-md rounded-lg border bg-card p-6 shadow-sm">
+
+        {/* Input ẩn để xử lý upload file */}
+        <input
           type="file"
           ref={fileInputRef}
           accept=".json"
@@ -172,157 +169,88 @@ export default function Intro() {
           disabled={isSubmitting}
         />
 
-        <form onSubmit={handleSubmitForm} className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            
-            <div className="flex flex-col space-y-4">
-              <div className="relative w-full aspect-square overflow-hidden rounded-none border bg-muted flex items-center justify-center">
-                {avatarUrl ? (
-                  <div className="relative h-full w-full">
-                    <Image
-                      src={avatarUrl}
-                      alt="Avatar"
-                      fill
-                      sizes="(max-width: 768px) 100vw, 300px"
-                      unoptimized
-                      className="object-cover object-center transition-all duration-300"
-                      priority
-                    />
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center text-muted-foreground/60 p-4 space-y-2">
-                    <UserIcon className="h-16 w-16 stroke-[1.25]" />
-                    <span className="text-xs text-center">Chưa có avatar</span>
-                  </div>
-                )}
-              </div>
+        {/* Tiêu đề & Nút khôi phục file cấu hình */}
+        <div className="flex items-center justify-between mb-6 border-b pb-4">
+          <h1 className="text-xl font-semibold tracking-tight text-card-foreground">
+            {restoredData ? "Khôi phục danh tính" : "Danh tính cá nhân"}
+          </h1>
+          {restoredData ? (
+            <Button type="button" variant="destructive" size="sm" onClick={handleCancelRestore} disabled={isSubmitting}>
+              <X className="h-4 w-4 mr-1.5" /> Hủy nhập
+            </Button>
+          ) : (
+            <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isSubmitting}>
+              <Upload className="h-4 w-4 mr-1.5" /> Khôi phục
+            </Button>
+          )}
+        </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={generateRandomSeed}
-                  disabled={isSubmitting || restoredData !== null}
-                  className="flex items-center justify-center gap-2"
-                >
-                  <Shuffle className="h-4 w-4 text-muted-foreground" />
-                  <span>Ngẫu nhiên</span>
-                </Button>
+        <form onSubmit={handleSubmitForm} className="space-y-4">
+          {/* Tên đăng nhập */}
+          <div className="space-y-2">
+            <Label htmlFor="username">Tên đăng nhập <span className="text-destructive">*</span></Label>
+            <Input
+              id="username"
+              type="text"
+              maxLength={25}
+              value={username}
+              onChange={handleUsernameChange}
+              placeholder="ex: prismora"
+              disabled={isSubmitting || restoredData !== null}
+              autoComplete="off"
+            />
+          </div>
 
-                {restoredData ? (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={handleCancelRestore}
-                    disabled={isSubmitting}
-                  >
-                    Hủy nhập
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isSubmitting}
-                    className="flex items-center justify-center gap-2"
-                  >
-                    <Upload className="h-4 w-4 text-muted-foreground" />
-                    <span>Khôi phục</span>
-                  </Button>
-                )}
-              </div>
-            </div>
+          {/* Thẻ tên */}
+          <div className="space-y-2">
+            <Label htmlFor="tag">Thẻ tên</Label>
+            <Input
+              id="tag"
+              maxLength={15}
+              value={tag}
+              onChange={handleTagChange}
+              placeholder="#prismex"
+              disabled={isSubmitting || restoredData !== null}
+              autoComplete="off"
+            />
+          </div>
 
-            <div className="flex flex-col justify-between space-y-4">
-              
-              <div className="space-y-2">
-                <Label htmlFor="username" className="flex items-center gap-2">
-                  <UserIcon className="h-4 w-4 text-muted-foreground" />
-                  <span>Tên hiển thị</span>
-                </Label>
-                <Input
-                  id="username"
-                  type="text"
-                  maxLength={25}
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Nhập tên của bạn..."
-                  disabled={isSubmitting || restoredData !== null}
-                  autoComplete="off"
-                />
-              </div>
+          {/* Biệt danh */}
+          <div className="space-y-2">
+            <Label htmlFor="nickname">Biệt danh <span className="text-destructive">*</span></Label>
+            <Input
+              id="nickname"
+              maxLength={30}
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              placeholder="Tên hiển thị của bạn..."
+              disabled={isSubmitting || restoredData !== null}
+              autoComplete="off"
+            />
+          </div>
 
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-muted-foreground" />
-                  <span>Phong cách định danh</span>
-                </Label>
-
-                <div className="grid grid-cols-2 gap-2">
-                  {AVATAR_STYLES?.map((style) => {
-                    const StyleIcon = style.icon
-                    const isSelected = currentStyle === style.id
-                    return (
-                      <Button
-                        key={style.id}
-                        type="button"
-                        variant="outline"
-                        onClick={() => !isSubmitting && !restoredData && handleStyleChange(style.id)}
-                        disabled={isSubmitting || restoredData !== null}
-                        className={`flex h-20 flex-col items-start justify-between p-3 text-left transition-colors ${
-                          isSelected
-                            ? "border-primary bg-accent text-accent-foreground"
-                            : "hover:bg-accent hover:text-accent-foreground"
-                        }`}
-                      >
-                        <div className="flex w-full items-center justify-between">
-                          <StyleIcon className={`h-4 w-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
-                          {isSelected && <CheckCircle2 className="h-4 w-4 text-primary" />}
-                        </div>
-                        <div className="space-y-0.5 w-full">
-                          <div className="text-sm font-medium leading-none">
-                            {style.name}
-                          </div>
-                          <div className="text-xs text-muted-foreground truncate w-full">
-                            {style.desc}
-                          </div>
-                        </div>
-                      </Button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {restoredData ? (
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full gap-2 mt-auto"
-                >
-                  <LogIn className="h-4 w-4" />
-                  {isSubmitting ? (
-                    <span>Đang khôi phục...</span>
-                  ) : (
-                    <span>Xác nhận đăng nhập</span>
-                  )}
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full mt-auto"
-                >
-                  {isSubmitting ? (
-                    <span>Đang khởi tạo...</span>
-                  ) : (
-                    <span>Khởi tạo</span>
-                  )}
-                </Button>
-              )}
-
-            </div>
+          <div className="pt-4">
+            {restoredData ? (
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full h-11 gap-2 font-medium text-md"
+              >
+                <LogIn className="h-5 w-5" />
+                {isSubmitting ? <span>Đang khôi phục...</span> : <span>Xác nhận đăng nhập</span>}
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full h-11 gap-2 font-medium text-md"
+              >
+                {isSubmitting ? <span>Đang khởi tạo...</span> : <span>Khởi tạo</span>}
+              </Button>
+            )}
           </div>
         </form>
+
       </div>
     </div>
   )
