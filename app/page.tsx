@@ -1,5 +1,6 @@
 "use client"
 
+import { useUserStore } from "@/store/profileStore" // Thêm import hook của store
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -17,6 +18,12 @@ import Topbar from "@/components/common/Topbar"
 import { LogList } from "@/components/app/LogList"
 
 export default function Page() {
+  const isInitialized = useUserStore((state) => state.isInitialized)
+  const username = useUserStore((state) => state.username)
+
+  if (!isInitialized || !username) {
+    return null
+  }
 
   return (
     <div className="flex h-screen w-screen flex-col bg-background text-foreground overflow-hidden font-sans antialiased">
