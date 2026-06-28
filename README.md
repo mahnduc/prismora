@@ -1,5 +1,5 @@
 <div style="text-align: center;">
-  <img src="./public/favicon.png" style="max-width: 120px; width: 100%; height: auto; display: block; margin: 0 auto 0 auto;" />
+  <img src="public/favicon.png" style="max-width: 120px; width: 100%; height: auto; display: block; margin: 0 auto 0 auto;" />
 
   <span style="
     font-family: 'Arial Black', Gadget, sans-serif; 
