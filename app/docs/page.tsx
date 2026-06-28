@@ -106,7 +106,7 @@ export default function DocsPage() {
 
             <div>
               <h4 className="text-xs font-bold text-foreground uppercase tracking-wider mb-2 px-3">
-                API References
+                Cấu trúc thư mục
               </h4>
               <div className="space-y-0.5">
                 {FOLDER_STRUCTURE.map((i) => (
@@ -127,18 +127,14 @@ export default function DocsPage() {
         </ScrollArea>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto px-8 py-2 bg-slate-950">
+      <main className="flex-1 overflow-y-auto px-8 py-2">
         <article className="
           prose prose-invert max-w-4xl mx-auto
           text-slate-400
           prose-headings:text-slate-100
-          prose-code:text-emerald-400 
-          prose-code:bg-slate-800/50
-          prose-code:px-1.5 
-          prose-code:py-0.5 
-          prose-code:rounded-md
           prose-strong:text-slate-200
+          prose-pre:bg-transparent prose-pre:p-0
+          prose-code:bg-transparent prose-code:p-0
         ">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
